@@ -5,29 +5,42 @@ import {
   DisconnectButton,
   GridLayout,
   ParticipantTile,
+  useLocalParticipant,
   useTracks,
 } from "@livekit/components-react";
-import { parseParticipantMetadata, type LanguageCode } from "@univoice/config";
-import { Track } from "livekit-client";
+import {
+  parseParticipantMetadata,
+  parseTranslatedTrackMetadata,
+  type LanguageCode,
+} from "@univoice/config";
+import { ParticipantKind, Track, type TrackPublication } from "livekit-client";
+import type { TrackReference } from "@livekit/components-core";
 
 interface ConferenceViewProps {
   myLang: LanguageCode;
 }
 
 // Video is shown for every participant regardless of language (per spec).
-// Audio is filtered per the client subscription rule: until Phase 3/4 add
-// translation tracks, the only audio that exists is each speaker's original,
-// so the rule reduces to "play original audio only from same-language
-// speakers" — other-language speech is simply silent for now.
+// Audio is filtered per the client subscription rule:
+//   - an original track plays if its publisher's lang == myLang and isn't me
+//   - a translation track (tagged via its trackName, since LiveKit tracks
+//     have no generic metadata field) plays if its targetLang == myLang and
+//     its sourceIdentity isn't me
+// Everything else (other-language originals once a translation exists,
+// translations meant for the other language) stays unplayed. Translator
+// agents are hidden bots, not people on a call, so they're excluded from
+// the video grid (they never publish camera tracks, but withPlaceholder
+// would otherwise render an empty tile for them).
 export function ConferenceView({ myLang }: ConferenceViewProps) {
-  const videoTracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }]);
+  const { localParticipant } = useLocalParticipant();
+  const videoTracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }]).filter(
+    (trackRef) => trackRef.participant.kind !== ParticipantKind.AGENT,
+  );
   const audioTracks = useTracks([Track.Source.Microphone], { onlySubscribed: false });
 
-  const audibleTracks = audioTracks.filter((trackRef) => {
-    if (trackRef.participant.isLocal) return false;
-    const meta = parseParticipantMetadata(trackRef.participant.metadata);
-    return meta?.lang === myLang;
-  });
+  const audibleTracks = audioTracks.filter((trackRef) =>
+    shouldPlay(trackRef, myLang, localParticipant.identity),
+  );
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -44,4 +57,17 @@ export function ConferenceView({ myLang }: ConferenceViewProps) {
       </div>
     </div>
   );
+}
+
+function shouldPlay(trackRef: TrackReference, myLang: LanguageCode, myIdentity: string): boolean {
+  const publication: TrackPublication = trackRef.publication;
+  const translation = parseTranslatedTrackMetadata(publication.trackName);
+
+  if (translation) {
+    return translation.targetLang === myLang && translation.sourceIdentity !== myIdentity;
+  }
+
+  if (trackRef.participant.isLocal) return false;
+  const meta = parseParticipantMetadata(trackRef.participant.metadata);
+  return meta?.lang === myLang;
 }

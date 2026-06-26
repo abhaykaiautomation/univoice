@@ -12,9 +12,6 @@ interface SessionInfo {
   lang: LanguageCode;
 }
 
-const TOKEN_SERVER_URL =
-  process.env.NEXT_PUBLIC_TOKEN_SERVER_URL ?? "http://localhost:4000";
-
 export default function Home() {
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [roomName, setRoomName] = useState("");
@@ -31,7 +28,7 @@ export default function Home() {
     setError(null);
     try {
       const identity = `${displayName}-${Math.random().toString(36).slice(2, 8)}`;
-      const res = await fetch(`${TOKEN_SERVER_URL}/api/token`, {
+      const res = await fetch("/api/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomName, identity, name: displayName, lang }),
