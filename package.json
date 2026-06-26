@@ -1,0 +1,9 @@
+{
+  "name": "univoice",
+  "private": true,
+  "workspaces": [
+    "config",
+    "token-server",
+    "web"
+  ]
+}
