@@ -2,14 +2,14 @@
 
 Zoom-like video conferencing with real-time speech translation (English ⇄ Spanish).
 
-Built incrementally in phases. **This is Phase 1: skeleton + plain conferencing** — no
-language routing or translation yet, just two (or more) people joining a LiveKit room with
-audio and video.
+Built incrementally in phases. **Phases 1 and 2 are done**: plain conferencing plus
+language identity and client-side audio routing. No translation yet — speakers in a
+different language than you are simply silent (video is still shown for everyone).
 
 ## Layout
 
 ```
-config/         shared TS config (e.g. supported languages) used by /web and /token-server
+config/         shared TS config (languages, participant metadata contract) used by /web and /token-server
 token-server/   Express service that issues LiveKit JWTs
 web/            Next.js client (join screen + video conference room)
 agents/         LiveKit Agents (Python) translators — added in Phase 3
@@ -64,19 +64,19 @@ npm run dev -w web
 ```
 
 Open http://localhost:3000 in **two different browser tabs** (or two browsers / devices).
-In each tab, enter a display name and the *same* room name, then click "Join room". Grant
-camera/microphone permissions when prompted.
+In each tab, enter a display name, pick a language (English or Spanish), and the *same*
+room name, then click "Join room". Grant camera/microphone permissions when prompted.
 
-## Verify (Phase 1 acceptance)
+## Verify
 
-- Both tabs show each other's video and you can hear each other's audio.
-- No console errors in either tab.
-- Leaving (closing the tab or browser disconnect) doesn't crash the other participant's session.
+- Two tabs with the **same** language: both see each other's video and hear each other.
+- Two tabs with **different** languages: both see each other's video, but hear nothing
+  from the other (no translation track exists yet — this is expected until Phase 4).
+- No console errors in either tab. Leaving (closing the tab or browser disconnect)
+  doesn't crash the other participant's session.
 
 ## What's next
 
-- **Phase 2** — add the EN/ES language toggle to the join screen and implement the
-  client-side audio subscription rule (mute originals from speakers in a different language).
 - **Phase 3** — passthrough translator agents (proves the agent pipeline end-to-end).
 - **Phase 4** — real speech-to-speech translation via `OpenAIRealtimeTranslateProvider`.
 - **Phase 5** — captions, active-speaker indicator, ducking, AEC sanity pass.
