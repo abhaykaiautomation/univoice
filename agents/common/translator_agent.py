@@ -15,11 +15,14 @@ Concurrency model — the core efficiency property of this architecture:
     micro-pauses mid-sentence so a session isn't torn down and recreated
     every time the speaker takes a breath.
 
-Phase 3 note: the forward() loop below is a passthrough — it copies audio
-frames unchanged from the subscribed source track onto the published
-"translation" track. This proves the subscribe -> agent -> publish ->
-client-consume pipeline end to end. Phase 4 replaces the body of forward()
-with a TranslationProvider session.
+Phase 4: each session's forward() loop pushes the source speaker's audio
+into a TranslationProvider session (e.g. OpenAIRealtimeTranslateProvider)
+and streams the translated audio it returns onto the published track. The
+provider is injected by the caller (en_to_es_agent.py / es_to_en_agent.py)
+based on the TRANSLATION_PROVIDER env var — this module never imports a
+vendor SDK directly. Audio runs at 24kHz PCM16 mono throughout this
+pipeline because that's what OpenAI's realtime-translation endpoint
+requires; using the same rate end-to-end avoids any resampling.
 """
 
 from __future__ import annotations
@@ -35,8 +38,9 @@ from livekit.agents import AutoSubscribe, JobContext
 from .languages import LanguageCode
 from .participant_metadata import parse_participant_metadata
 from .track_metadata import TranslatedTrackMetadata
+from translation.provider import TranslationProvider, TranslationSession
 
-SAMPLE_RATE = 48_000
+SAMPLE_RATE = 24_000
 NUM_CHANNELS = 1
 STOP_GRACE_SECONDS = 1.5
 
@@ -48,11 +52,12 @@ class SpeakerSession:
     audio_source: rtc.AudioSource
     local_track: rtc.LocalAudioTrack
     publication: rtc.LocalTrackPublication
+    translation_session: TranslationSession
     forward_task: "asyncio.Task[None]"
     stop_task: "asyncio.Task[None] | None" = None
 
 
-def create_entrypoint(source_lang: LanguageCode, target_lang: LanguageCode):
+def create_entrypoint(source_lang: LanguageCode, target_lang: LanguageCode, provider: TranslationProvider):
     logger = logging.getLogger(f"translator.{source_lang}_to_{target_lang}")
 
     async def entrypoint(ctx: JobContext) -> None:
@@ -100,31 +105,47 @@ def create_entrypoint(source_lang: LanguageCode, target_lang: LanguageCode):
             if track is None:
                 return
 
-            audio_stream = rtc.AudioStream(track, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS)
-            audio_source = rtc.AudioSource(SAMPLE_RATE, NUM_CHANNELS)
-            track_name = TranslatedTrackMetadata(source_identity=identity, target_lang=target_lang).encode()
-            local_track = rtc.LocalAudioTrack.create_audio_track(track_name, audio_source)
-            publication = await room.local_participant.publish_track(
-                local_track,
-                rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE),
-            )
+            try:
+                audio_stream = rtc.AudioStream(track, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS)
+                audio_source = rtc.AudioSource(SAMPLE_RATE, NUM_CHANNELS)
+                track_name = TranslatedTrackMetadata(source_identity=identity, target_lang=target_lang).encode()
+                local_track = rtc.LocalAudioTrack.create_audio_track(track_name, audio_source)
+                publication = await room.local_participant.publish_track(
+                    local_track,
+                    rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE),
+                )
 
-            async def forward() -> None:
-                try:
-                    async for event in audio_stream:
-                        await audio_source.capture_frame(event.frame)
-                except asyncio.CancelledError:
-                    pass
+                async def on_audio(pcm: bytes) -> None:
+                    samples_per_channel = len(pcm) // 2 // NUM_CHANNELS
+                    if samples_per_channel == 0:
+                        return
+                    frame = rtc.AudioFrame(pcm, SAMPLE_RATE, NUM_CHANNELS, samples_per_channel)
+                    await audio_source.capture_frame(frame)
 
-            sessions[identity] = SpeakerSession(
-                identity=identity,
-                audio_stream=audio_stream,
-                audio_source=audio_source,
-                local_track=local_track,
-                publication=publication,
-                forward_task=asyncio.create_task(forward()),
-            )
-            logger.info("started session for %s (%s -> %s)", identity, source_lang, target_lang)
+                async def on_transcript(text: str, is_final: bool) -> None:
+                    logger.debug("transcript [%s]: %s", identity, text)
+
+                translation_session = await provider.start_session(source_lang, target_lang, on_audio, on_transcript)
+
+                async def forward() -> None:
+                    try:
+                        async for event in audio_stream:
+                            await translation_session.push_audio(bytes(event.frame.data))
+                    except asyncio.CancelledError:
+                        pass
+
+                sessions[identity] = SpeakerSession(
+                    identity=identity,
+                    audio_stream=audio_stream,
+                    audio_source=audio_source,
+                    local_track=local_track,
+                    publication=publication,
+                    translation_session=translation_session,
+                    forward_task=asyncio.create_task(forward()),
+                )
+                logger.info("started session for %s (%s -> %s)", identity, source_lang, target_lang)
+            except Exception:
+                logger.exception("error starting session for %s", identity)
 
         async def stop_session(identity: str) -> None:
             session = sessions.pop(identity, None)
@@ -140,6 +161,7 @@ def create_entrypoint(source_lang: LanguageCode, target_lang: LanguageCode):
                 with contextlib.suppress(asyncio.CancelledError):
                     await session.forward_task
                 await session.audio_stream.aclose()
+                await session.translation_session.aclose()
                 await room.local_participant.unpublish_track(session.publication.sid)
                 await session.audio_source.aclose()
                 logger.info("stopped session for %s", identity)
