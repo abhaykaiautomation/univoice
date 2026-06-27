@@ -20,7 +20,7 @@ export function RoomView({ token, serverUrl, myLang, roomName, onLeave }: RoomVi
       audio
       video
       connect
-      style={{ height: "100vh" }}
+      className="univoice-room"
       onDisconnected={onLeave}
     >
       <ConferenceView myLang={myLang} roomName={roomName} />

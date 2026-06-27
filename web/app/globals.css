@@ -8,10 +8,21 @@ html,
 body {
   margin: 0;
   height: 100%;
+  height: 100dvh;
   overflow: hidden;
   background: #111;
   color: #eee;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* iOS Safari's bottom toolbar isn't accounted for by 100vh, which pushes
+   the control bar below the actually-visible area - 100dvh tracks the
+   real visible viewport. Declared after 100vh so older browsers that
+   don't support dvh keep the 100vh fallback instead of being left with
+   no height at all. */
+.univoice-room {
+  height: 100vh;
+  height: 100dvh;
 }
 
 .univoice-start-audio {
