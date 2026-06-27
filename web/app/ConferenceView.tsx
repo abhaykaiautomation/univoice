@@ -9,6 +9,7 @@ import {
   useTracks,
 } from "@livekit/components-react";
 import {
+  LANGUAGES,
   parseParticipantMetadata,
   parseTranslatedTrackMetadata,
   type LanguageCode,
@@ -42,8 +43,21 @@ export function ConferenceView({ myLang }: ConferenceViewProps) {
     shouldPlay(trackRef, myLang, localParticipant.identity),
   );
 
+  const myLangLabel = LANGUAGES.find((l) => l.code === myLang)?.label ?? myLang;
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          padding: "8px 16px",
+          textAlign: "center",
+          background: "#1a1a1a",
+          color: "#fff",
+          fontSize: 14,
+        }}
+      >
+        Your language: <strong>{myLangLabel}</strong>
+      </div>
       <div style={{ flex: 1 }}>
         <GridLayout tracks={videoTracks}>
           <ParticipantTile />
