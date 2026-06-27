@@ -140,10 +140,18 @@ export function ConferenceView({ myLang, roomName }: ConferenceViewProps) {
         <AudioTrack key={trackRef.publication.trackSid} trackRef={trackRef} />
       ))}
       <StartAudio label="Click to enable audio" className="univoice-start-audio" />
-      <ControlBar
-        controls={{ microphone: true, camera: true, screenShare: false, chat: false, settings: false, leave: true }}
-        variation="verbose"
-      />
+      <div className="univoice-controlbar-desktop">
+        <ControlBar
+          controls={{ microphone: true, camera: true, screenShare: false, chat: false, settings: false, leave: true }}
+          variation="verbose"
+        />
+      </div>
+      <div className="univoice-controlbar-mobile">
+        <ControlBar
+          controls={{ microphone: true, camera: true, screenShare: false, chat: false, settings: false, leave: true }}
+          variation="minimal"
+        />
+      </div>
     </div>
   );
 }
