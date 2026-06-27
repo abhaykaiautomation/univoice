@@ -11,9 +11,19 @@ Concurrency model — the core efficiency property of this architecture:
     connection — only exists while that speaker is in the room's
     active-speaker set. So cost scales with how many people are
     concurrently *talking*, not with how many people are in the room.
-  - A short grace period (STOP_GRACE_SECONDS) on the "stop" side absorbs
-    micro-pauses mid-sentence so a session isn't torn down and recreated
-    every time the speaker takes a breath.
+  - A grace period (STOP_GRACE_SECONDS) on the "stop" side absorbs natural
+    pauses — between words, breaths, even between sentences — so a session
+    isn't torn down and reconnected (full WebSocket handshake to the
+    TranslationProvider) every time the speaker pauses. LiveKit's
+    active_speakers_changed is a noisy, sub-second signal that toggles
+    on/off even mid-utterance, so this needs real headroom or every pause
+    becomes a visible latency spike.
+  - start_session() claims `identity` synchronously (the `starting` set)
+    before doing anything async. Without that, two active_speakers_changed
+    events arriving close together (which happens routinely, since the
+    signal flaps) would both see "no session yet" and both proceed to open
+    a second, redundant TranslationProvider connection and published track
+    for the same speaker.
 
 Phase 4: each session's forward() loop pushes the source speaker's audio
 into a TranslationProvider session (e.g. OpenAIRealtimeTranslateProvider)
@@ -42,7 +52,7 @@ from translation.provider import TranslationProvider, TranslationSession
 
 SAMPLE_RATE = 24_000
 NUM_CHANNELS = 1
-STOP_GRACE_SECONDS = 1.5
+STOP_GRACE_SECONDS = 5.0
 
 
 @dataclass
@@ -69,6 +79,9 @@ def create_entrypoint(source_lang: LanguageCode, target_lang: LanguageCode, prov
         # currently speaking `source_lang`.
         source_tracks: dict[str, rtc.RemoteAudioTrack] = {}
         sessions: dict[str, SpeakerSession] = {}
+        # Identities with a start_session() call in flight (claimed
+        # synchronously, before any await) — see module docstring.
+        starting: set[str] = set()
         # Mirrors the most recent active_speakers_changed event. Needed
         # because track subscription is negotiated asynchronously: a
         # participant can show up as an active speaker before their mic
@@ -101,10 +114,14 @@ def create_entrypoint(source_lang: LanguageCode, target_lang: LanguageCode, prov
                     existing.stop_task = None
                 return
 
+            if identity in starting:
+                return
+
             track = source_tracks.get(identity)
             if track is None:
                 return
 
+            starting.add(identity)
             try:
                 audio_stream = rtc.AudioStream(track, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS)
                 audio_source = rtc.AudioSource(SAMPLE_RATE, NUM_CHANNELS)
@@ -146,8 +163,17 @@ def create_entrypoint(source_lang: LanguageCode, target_lang: LanguageCode, prov
                 logger.info("started session for %s (%s -> %s)", identity, source_lang, target_lang)
             except Exception:
                 logger.exception("error starting session for %s", identity)
+            finally:
+                starting.discard(identity)
+
+            # The speaker may have disconnected (or stopped being relevant)
+            # while we were busy connecting — clean up rather than leave a
+            # dangling session for someone no longer in the room.
+            if identity not in active_ids and identity in sessions:
+                schedule_stop(identity)
 
         async def stop_session(identity: str) -> None:
+            starting.discard(identity)
             session = sessions.pop(identity, None)
             if session is None:
                 return
