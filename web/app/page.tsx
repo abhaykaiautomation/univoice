@@ -57,6 +57,7 @@ export default function Home() {
         token={session.token}
         serverUrl={session.serverUrl}
         myLang={session.lang}
+        roomName={session.roomName}
         onLeave={() => setSession(null)}
       />
     );

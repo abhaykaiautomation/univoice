@@ -8,10 +8,11 @@ interface RoomViewProps {
   token: string;
   serverUrl: string;
   myLang: LanguageCode;
+  roomName: string;
   onLeave: () => void;
 }
 
-export function RoomView({ token, serverUrl, myLang, onLeave }: RoomViewProps) {
+export function RoomView({ token, serverUrl, myLang, roomName, onLeave }: RoomViewProps) {
   return (
     <LiveKitRoom
       token={token}
@@ -22,7 +23,7 @@ export function RoomView({ token, serverUrl, myLang, onLeave }: RoomViewProps) {
       style={{ height: "100vh" }}
       onDisconnected={onLeave}
     >
-      <ConferenceView myLang={myLang} />
+      <ConferenceView myLang={myLang} roomName={roomName} />
     </LiveKitRoom>
   );
 }

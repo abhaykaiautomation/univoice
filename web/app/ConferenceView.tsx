@@ -5,6 +5,7 @@ import {
   ControlBar,
   GridLayout,
   ParticipantTile,
+  StartAudio,
   useLocalParticipant,
   useTracks,
 } from "@livekit/components-react";
@@ -19,6 +20,7 @@ import type { TrackReference } from "@livekit/components-core";
 
 interface ConferenceViewProps {
   myLang: LanguageCode;
+  roomName: string;
 }
 
 // Video is shown for every participant regardless of language (per spec).
@@ -32,7 +34,7 @@ interface ConferenceViewProps {
 // agents are hidden bots, not people on a call, so they're excluded from
 // the video grid (they never publish camera tracks, but withPlaceholder
 // would otherwise render an empty tile for them).
-export function ConferenceView({ myLang }: ConferenceViewProps) {
+export function ConferenceView({ myLang, roomName }: ConferenceViewProps) {
   const { localParticipant } = useLocalParticipant();
   const videoTracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }]).filter(
     (trackRef) => trackRef.participant.kind !== ParticipantKind.AGENT,
@@ -46,17 +48,22 @@ export function ConferenceView({ myLang }: ConferenceViewProps) {
   const myLangLabel = LANGUAGES.find((l) => l.code === myLang)?.label ?? myLang;
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "#000" }}>
       <div
         style={{
-          padding: "8px 16px",
-          textAlign: "center",
+          padding: "10px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           background: "#1a1a1a",
           color: "#fff",
           fontSize: 14,
         }}
       >
-        Your language: <strong>{myLangLabel}</strong>
+        <span>{roomName}</span>
+        <span>
+          Your language: <strong>{myLangLabel}</strong>
+        </span>
       </div>
       <div style={{ flex: 1 }}>
         <GridLayout tracks={videoTracks}>
@@ -66,9 +73,10 @@ export function ConferenceView({ myLang }: ConferenceViewProps) {
       {audibleTracks.map((trackRef) => (
         <AudioTrack key={trackRef.publication.trackSid} trackRef={trackRef} />
       ))}
+      <StartAudio label="Click to enable audio" className="univoice-start-audio" />
       <ControlBar
         controls={{ microphone: true, camera: true, screenShare: false, chat: false, settings: false, leave: true }}
-        variation="minimal"
+        variation="verbose"
       />
     </div>
   );
