@@ -62,7 +62,14 @@ export function ConferenceView({ myLang, roomName }: ConferenceViewProps) {
 
   return (
     <div
-      style={{ height: "100%", display: "flex", flexDirection: "column", background: "#000", position: "relative" }}
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        background: "#000",
+        position: "relative",
+        overflow: "hidden",
+      }}
     >
       <div
         style={{
@@ -124,7 +131,7 @@ export function ConferenceView({ myLang, roomName }: ConferenceViewProps) {
           ))}
         </div>
       )}
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
         <GridLayout tracks={videoTracks}>
           <ParticipantTile />
         </GridLayout>
