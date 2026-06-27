@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { DEFAULT_LANGUAGE, LANGUAGES, type LanguageCode } from "@univoice/config";
 import { RoomView } from "./RoomView";
 
@@ -70,45 +70,114 @@ export default function Home() {
         alignItems: "center",
         justifyContent: "center",
         minHeight: "100vh",
-        gap: 16,
       }}
     >
-      <h1>UniVoice</h1>
-      <form
-        onSubmit={handleJoin}
-        style={{ display: "flex", flexDirection: "column", gap: 12, width: 280 }}
+      <div
+        style={{
+          width: 360,
+          background: "#1c1c1e",
+          borderRadius: 16,
+          padding: 32,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+        }}
       >
-        <input
-          placeholder="Display name"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          required
-        />
-        <input
-          placeholder="Room name"
-          value={roomName}
-          onChange={(e) => setRoomName(e.target.value)}
-          required
-        />
-        <fieldset style={{ display: "flex", gap: 16, border: "none", padding: 0 }}>
-          {LANGUAGES.map((l) => (
-            <label key={l.code} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input
-                type="radio"
-                name="lang"
-                value={l.code}
-                checked={lang === l.code}
-                onChange={() => setLang(l.code)}
-              />
-              {l.label}
-            </label>
-          ))}
-        </fieldset>
-        <button type="submit" disabled={joining}>
-          {joining ? "Joining..." : "Join room"}
-        </button>
-        {error && <p style={{ color: "salmon" }}>{error}</p>}
-      </form>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 14,
+              background: "#2563eb",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 28,
+            }}
+          >
+            🎥
+          </div>
+          <h1 style={{ margin: "8px 0 0", fontSize: 22 }}>UniVoice</h1>
+          <p style={{ margin: 0, fontSize: 13, color: "#9a9a9e" }}>
+            Real-time translated video calls
+          </p>
+        </div>
+
+        <form onSubmit={handleJoin} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <input
+            placeholder="Display name"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            required
+            style={inputStyle}
+          />
+          <input
+            placeholder="Room name"
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value)}
+            required
+            style={inputStyle}
+          />
+
+          <div style={{ display: "flex", gap: 8 }}>
+            {LANGUAGES.map((l) => {
+              const selected = lang === l.code;
+              return (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => setLang(l.code)}
+                  style={{
+                    flex: 1,
+                    padding: "10px 0",
+                    borderRadius: 8,
+                    border: selected ? "1px solid #2563eb" : "1px solid #3a3a3e",
+                    background: selected ? "#2563eb" : "#2a2a2e",
+                    color: "#fff",
+                    fontSize: 14,
+                    cursor: "pointer",
+                  }}
+                >
+                  {l.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="submit"
+            disabled={joining}
+            style={{
+              padding: "12px 0",
+              borderRadius: 8,
+              border: "none",
+              background: joining ? "#3a3a3e" : "#2563eb",
+              color: "#fff",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: joining ? "default" : "pointer",
+            }}
+          >
+            {joining ? "Joining..." : "Join room"}
+          </button>
+          {error && (
+            <p style={{ margin: 0, fontSize: 13, color: "#f87171", textAlign: "center" }}>
+              {error}
+            </p>
+          )}
+        </form>
+      </div>
     </main>
   );
 }
+
+const inputStyle: CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid #3a3a3e",
+  background: "#2a2a2e",
+  color: "#fff",
+  fontSize: 14,
+};

@@ -2,7 +2,7 @@
 
 import {
   AudioTrack,
-  DisconnectButton,
+  ControlBar,
   GridLayout,
   ParticipantTile,
   useLocalParticipant,
@@ -66,9 +66,10 @@ export function ConferenceView({ myLang }: ConferenceViewProps) {
       {audibleTracks.map((trackRef) => (
         <AudioTrack key={trackRef.publication.trackSid} trackRef={trackRef} />
       ))}
-      <div style={{ padding: 12, textAlign: "center" }}>
-        <DisconnectButton>Leave room</DisconnectButton>
-      </div>
+      <ControlBar
+        controls={{ microphone: true, camera: true, screenShare: false, chat: false, settings: false, leave: true }}
+        variation="minimal"
+      />
     </div>
   );
 }
