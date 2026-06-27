@@ -35,17 +35,44 @@ body {
   cursor: pointer;
 }
 
-/* Labeled control bar fits on wider screens; icon-only below that, so
-   the mic/camera/leave buttons never overflow off-screen on mobile. */
-.univoice-controlbar-mobile {
-  display: none;
+.univoice-ribbon-toggle {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: none;
+  background: #2a2a2e;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
-@media (max-width: 640px) {
-  .univoice-controlbar-desktop {
-    display: none;
+.univoice-ribbon-toggle[data-lk-enabled="false"] {
+  background: #5a2424;
+}
+
+.univoice-ribbon-leave {
+  flex-shrink: 0;
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 6px;
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@keyframes univoice-float-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
   }
-  .univoice-controlbar-mobile {
-    display: block;
+  100% {
+    opacity: 0;
+    transform: translateY(-60px);
   }
 }

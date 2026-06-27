@@ -49,6 +49,7 @@ export async function POST(req: Request) {
     roomJoin: true,
     canPublish: true,
     canSubscribe: true,
+    canUpdateOwnMetadata: true,
   };
   at.addGrant(grant);
 
